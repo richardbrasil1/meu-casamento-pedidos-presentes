@@ -14,16 +14,114 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      gifts: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          image: string | null
+          link: string | null
+          name: string
+          price: number | null
+          purchased: boolean
+          purchased_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image?: string | null
+          link?: string | null
+          name: string
+          price?: number | null
+          purchased?: boolean
+          purchased_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          image?: string | null
+          link?: string | null
+          name?: string
+          price?: number | null
+          purchased?: boolean
+          purchased_by?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wedding_info: {
+        Row: {
+          address: string
+          couple: string
+          created_at: string
+          date: string
+          email: string
+          id: string
+          message: string
+          phone: string
+          pix_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string
+          couple?: string
+          created_at?: string
+          date?: string
+          email?: string
+          id?: string
+          message?: string
+          phone?: string
+          pix_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          couple?: string
+          created_at?: string
+          date?: string
+          email?: string
+          id?: string
+          message?: string
+          phone?: string
+          pix_key?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +248,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
