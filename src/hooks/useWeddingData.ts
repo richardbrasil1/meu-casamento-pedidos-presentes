@@ -1,133 +1,187 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { GiftItem, WeddingInfo } from "@/types/wedding";
 
 const DEFAULT_INFO: WeddingInfo = {
-  couple: "Ana & João",
-  date: "15 de Março de 2026",
+  couple: "Caroline & Richard",
+  date: "07 de Março de 2026",
   message: "Estamos muito felizes em compartilhar esse momento com vocês! Aqui está nossa lista de presentes para nos ajudar a começar essa nova etapa juntos. 💕",
   phone: "(11) 99999-9999",
-  email: "ana.joao@email.com",
+  email: "caroline.richard@email.com",
   address: "Rua das Flores, 123 - São Paulo, SP",
-  pixKey: "ana.joao@email.com",
+  pixKey: "caroline.richard@email.com",
 };
 
-const DEFAULT_GIFTS: GiftItem[] = [
-  {
-    id: "1",
-    name: "Jogo de Panelas",
-    description: "Jogo de panelas antiaderente com 5 peças",
-    price: 350,
-    purchased: false,
-  },
-  {
-    id: "2",
-    name: "Jogo de Cama Queen",
-    description: "Jogo de cama 400 fios, algodão egípcio",
-    price: 280,
-    purchased: false,
-  },
-  {
-    id: "3",
-    name: "Cafeteira Elétrica",
-    description: "Cafeteira programável com jarra térmica",
-    price: 450,
-    purchased: false,
-  },
-  {
-    id: "4",
-    name: "Aspirador Robô",
-    description: "Aspirador robô com mapeamento inteligente",
-    price: 1200,
-    purchased: false,
-  },
-  {
-    id: "5",
-    name: "Jogo de Toalhas",
-    description: "Kit com 8 toalhas de banho e rosto",
-    price: 180,
-    purchased: false,
-  },
-  {
-    id: "6",
-    name: "Air Fryer",
-    description: "Fritadeira elétrica 5 litros digital",
-    price: 550,
-    purchased: false,
-  },
-];
-
 export function useWeddingData() {
-  const [gifts, setGifts] = useState<GiftItem[]>(() => {
-    const saved = localStorage.getItem("wedding-gifts");
-    return saved ? JSON.parse(saved) : DEFAULT_GIFTS;
-  });
+  const [gifts, setGifts] = useState<GiftItem[]>([]);
+  const [info, setInfo] = useState<WeddingInfo>(DEFAULT_INFO);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  const [info, setInfo] = useState<WeddingInfo>(() => {
-    const saved = localStorage.getItem("wedding-info");
-    return saved ? JSON.parse(saved) : DEFAULT_INFO;
-  });
-
-  const [isAdmin, setIsAdmin] = useState(() => {
-    return localStorage.getItem("wedding-admin") === "true";
-  });
-
+  // Check auth state
   useEffect(() => {
-    localStorage.setItem("wedding-gifts", JSON.stringify(gifts));
-  }, [gifts]);
-
-  useEffect(() => {
-    localStorage.setItem("wedding-info", JSON.stringify(info));
-  }, [info]);
-
-  const addGift = (gift: Omit<GiftItem, "id" | "purchased">) => {
-    const newGift: GiftItem = {
-      ...gift,
-      id: Date.now().toString(),
-      purchased: false,
-    };
-    setGifts((prev) => [...prev, newGift]);
-  };
-
-  const removeGift = (id: string) => {
-    setGifts((prev) => prev.filter((g) => g.id !== id));
-  };
-
-  const togglePurchased = (id: string, buyerName: string) => {
-    setGifts((prev) =>
-      prev.map((g) =>
-        g.id === id
-          ? { ...g, purchased: !g.purchased, purchasedBy: g.purchased ? undefined : buyerName }
-          : g
-      )
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        if (session?.user) {
+          // Check admin role
+          const { data } = await supabase
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", session.user.id)
+            .eq("role", "admin");
+          setIsAdmin(!!data && data.length > 0);
+        } else {
+          setIsAdmin(false);
+        }
+      }
     );
-  };
 
-  const updateInfo = (newInfo: Partial<WeddingInfo>) => {
-    setInfo((prev) => ({ ...prev, ...newInfo }));
-  };
+    // Check current session
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (session?.user) {
+        const { data } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .eq("role", "admin");
+        setIsAdmin(!!data && data.length > 0);
+      }
+    });
 
-  const login = (password: string): boolean => {
-    if (password === "casamento2026") {
-      setIsAdmin(true);
-      localStorage.setItem("wedding-admin", "true");
-      return true;
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Fetch wedding info
+  useEffect(() => {
+    const fetchInfo = async () => {
+      const { data } = await supabase
+        .from("wedding_info")
+        .select("*")
+        .limit(1)
+        .maybeSingle();
+
+      if (data) {
+        setInfo({
+          couple: data.couple,
+          date: data.date,
+          message: data.message,
+          phone: data.phone,
+          email: data.email,
+          address: data.address,
+          pixKey: data.pix_key || undefined,
+        });
+      }
+    };
+    fetchInfo();
+  }, []);
+
+  // Fetch gifts
+  const fetchGifts = useCallback(async () => {
+    const { data } = await supabase
+      .from("gifts")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (data) {
+      setGifts(
+        data.map((g) => ({
+          id: g.id,
+          name: g.name,
+          description: g.description || undefined,
+          price: g.price ? Number(g.price) : undefined,
+          link: g.link || undefined,
+          image: g.image || undefined,
+          purchased: g.purchased,
+          purchasedBy: g.purchased_by || undefined,
+        }))
+      );
     }
-    return false;
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchGifts();
+  }, [fetchGifts]);
+
+  // Realtime subscription for gifts
+  useEffect(() => {
+    const channel = supabase
+      .channel("gifts-realtime")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "gifts" },
+        () => {
+          fetchGifts();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchGifts]);
+
+  const addGift = async (gift: Omit<GiftItem, "id" | "purchased">) => {
+    const { error } = await supabase.from("gifts").insert({
+      name: gift.name,
+      description: gift.description || null,
+      price: gift.price || null,
+      link: gift.link || null,
+      image: gift.image || null,
+    });
+    if (error) {
+      console.error("Error adding gift:", error);
+      throw error;
+    }
   };
 
-  const logout = () => {
+  const removeGift = async (id: string) => {
+    const { error } = await supabase.from("gifts").delete().eq("id", id);
+    if (error) {
+      console.error("Error removing gift:", error);
+      throw error;
+    }
+  };
+
+  const togglePurchased = async (id: string, buyerName: string) => {
+    const gift = gifts.find((g) => g.id === id);
+    if (!gift) return;
+
+    const { error } = await supabase
+      .from("gifts")
+      .update({
+        purchased: !gift.purchased,
+        purchased_by: gift.purchased ? null : buyerName,
+      })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error toggling purchase:", error);
+      throw error;
+    }
+  };
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    return !error;
+  };
+
+  const logout = async () => {
+    await supabase.auth.signOut();
     setIsAdmin(false);
-    localStorage.removeItem("wedding-admin");
   };
 
   return {
     gifts,
     info,
     isAdmin,
+    loading,
     addGift,
     removeGift,
     togglePurchased,
-    updateInfo,
     login,
     logout,
   };

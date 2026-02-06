@@ -15,21 +15,31 @@ import { toast } from "sonner";
 
 interface AdminToggleProps {
   isAdmin: boolean;
-  onLogin: (password: string) => boolean;
+  onLogin: (email: string, password: string) => Promise<boolean>;
   onLogout: () => void;
 }
 
 const AdminToggle = ({ isAdmin, onLogin, onLogout }: AdminToggleProps) => {
   const [showDialog, setShowDialog] = useState(false);
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
-    if (onLogin(password)) {
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      toast.error("Preencha e-mail e senha!");
+      return;
+    }
+    setIsLoading(true);
+    const success = await onLogin(email, password);
+    setIsLoading(false);
+    if (success) {
       setShowDialog(false);
+      setEmail("");
       setPassword("");
       toast.success("Modo administrador ativado! ✨");
     } else {
-      toast.error("Senha incorreta!");
+      toast.error("E-mail ou senha incorretos!");
     }
   };
 
@@ -83,26 +93,36 @@ const AdminToggle = ({ isAdmin, onLogin, onLogout }: AdminToggleProps) => {
           <DialogHeader>
             <DialogTitle className="font-display text-xl">Acesso Administrativo</DialogTitle>
             <DialogDescription>
-              Digite a senha para gerenciar a lista de presentes.
+              Faça login para gerenciar a lista de presentes.
             </DialogDescription>
           </DialogHeader>
-          <Input
-            type="password"
-            placeholder="Senha"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-            className="font-body"
-          />
-          <p className="text-xs text-muted-foreground">
-            Dica: a senha padrão é <strong>casamento2026</strong>
-          </p>
+          <div className="space-y-3">
+            <Input
+              type="email"
+              placeholder="E-mail"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="font-body"
+            />
+            <Input
+              type="password"
+              placeholder="Senha"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+              className="font-body"
+            />
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDialog(false)} className="font-body">
               Cancelar
             </Button>
-            <Button onClick={handleLogin} className="font-body bg-primary text-primary-foreground">
-              Entrar
+            <Button
+              onClick={handleLogin}
+              disabled={isLoading}
+              className="font-body bg-primary text-primary-foreground"
+            >
+              {isLoading ? "Entrando..." : "Entrar"}
             </Button>
           </DialogFooter>
         </DialogContent>
