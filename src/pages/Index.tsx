@@ -1,12 +1,52 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useWeddingData } from "@/hooks/useWeddingData";
+import HeroSection from "@/components/HeroSection";
+import GiftList from "@/components/GiftList";
+import AddGiftForm from "@/components/AddGiftForm";
+import ContactSection from "@/components/ContactSection";
+import AdminToggle from "@/components/AdminToggle";
+import { Heart } from "lucide-react";
 
 const Index = () => {
+  const {
+    gifts,
+    info,
+    isAdmin,
+    addGift,
+    removeGift,
+    togglePurchased,
+    login,
+    logout,
+  } = useWeddingData();
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-background">
+      <HeroSection info={info} />
+
+      <div className="relative">
+        {isAdmin && (
+          <div className="pt-10 px-6">
+            <AddGiftForm onAdd={addGift} />
+          </div>
+        )}
+
+        <GiftList
+          gifts={gifts}
+          isAdmin={isAdmin}
+          onTogglePurchased={togglePurchased}
+          onRemove={removeGift}
+        />
       </div>
+
+      <ContactSection info={info} />
+
+      {/* Footer */}
+      <footer className="py-8 text-center bg-background border-t border-border">
+        <p className="font-body text-sm text-muted-foreground flex items-center justify-center gap-1">
+          Feito com <Heart className="w-3 h-3 text-primary fill-primary" /> para {info.couple}
+        </p>
+      </footer>
+
+      <AdminToggle isAdmin={isAdmin} onLogin={login} onLogout={logout} />
     </div>
   );
 };
